@@ -44,11 +44,28 @@ class Cell(object):
         there is just one possibility"""
         return len(self.possibilities) == 1
     
-    def __str__(self):
+    def solution(self):
+        """returns the cell solution, if available
+        else returns None"""
         if self.is_solved():
-            return str(tuple(self.possibilities)[0])
+            return tuple(self.possibilities)[0]
         else:
+            return None
+    
+    def __str__(self):
+        """string of the solution, or "-" if Cell is unsolved"""
+        sol = self.solution()
+        if sol is None:
             return "-"
+        else:
+            return str(sol)
+    
+    def __repr__(self):
+        sol = self.solution()
+        if sol is None:
+            return 'Cell((%d,%d))' % self.pos
+        else:
+            return 'Cell((%d,%d), %s)' % (self.pos + (str(sol),))
         
 class Sudoku(object):
     """represent the Sudoku game"""
@@ -95,8 +112,36 @@ class Sudoku(object):
         return [c for c in self.cells if c.pos[1]==a1]
     
     def get_block_set(self, block_pos):
-        """get the list of cell at block (A0,A1)"""
+        """get the list of cell in the macro-block (A0,A1)"""
+        assert len(block_pos) == 2
+        print("macro block (%d,%d)" % block_pos)
         return set()
+    
+    def get_set(self,n):
+        '''get the list of cell corresponding to set number n.
+        Sets are classified as follows :
+         * n =  0 to  8  : corresponds to row 0 to 8
+         * n =  9 to 17  : corresponds to column 0 to 8
+         * n = 18 to 26  : corresponds to macro-block 0 to 8
+        '''
+        (N0, N1) = self.grid_size
+        set_type = n // N0
+        assert set_type in set([0,1,2])
+        
+        if set_type == 0:
+            # returns a row
+            return self.get_row_set(a0=n)
+        
+        if set_type == 1:
+            # returns a colum
+            return self.get_col_set(a1=n-N0)
+        
+        if set_type == 2:
+            # returns a macro block
+            block_number = n-N0-N1
+            block_pos = (block_number%3, block_number//3)
+            return self.get_block_set(block_pos)
+    # end get_set
     
     def __str__(self):
         """visual text represtation of the Sudoku grid at current state
