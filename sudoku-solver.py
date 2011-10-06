@@ -114,12 +114,15 @@ class Sudoku(object):
     def get_block_set(self, block_pos):
         """get the list of cell in the macro-block (A0,A1)"""
         assert len(block_pos) == 2
+        (A0,A1) = block_pos
         print("macro block (%d,%d)" % block_pos)
-        return set()
+        return [c for c in self.cells if c.pos[0]//3==A0 and c.pos[1]//3==A1]
     
     def get_set(self,n):
         '''get the list of cell corresponding to set number n.
-        Sets are classified as follows :
+        This is the generic function to return any type of cell set.
+        
+        Cell sets are classified as follows :
          * n =  0 to  8  : corresponds to row 0 to 8
          * n =  9 to 17  : corresponds to column 0 to 8
          * n = 18 to 26  : corresponds to macro-block 0 to 8
