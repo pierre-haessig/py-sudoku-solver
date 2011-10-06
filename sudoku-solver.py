@@ -18,7 +18,7 @@ class Cell(object):
     """represents a Sudoku cell"""
     
     # all available possibilities in a the cell :
-    all_possibilities = set(range(10)) # = {0:9}
+    all_possibilities = set(range(1,10)) # = {1:9}
     
     def __init__(self, pos, solution = None):
         """pos = (a0,a1) is the cell position in the grid
@@ -35,9 +35,19 @@ class Cell(object):
             self.remove_possibilities(self.all_possibilities - set([solution]))            
     
     def remove_possibilities(self, rm_set):
-        """remove a set of possibilities"""
-        self.possibilities -= rm_set
-        assert len(self.possibilities) >= 1
+        """remove a set of possibilities
+        - returns True if there was strict decrease in
+        the size of possibilities set
+        - returns False if rm_set has no elements in common with
+        possibilities set
+        """
+        if self.possibilities.isdisjoint(rm_set):
+            return False
+        else:
+            self.possibilities -= rm_set
+            assert len(self.possibilities) >= 1
+            return True
+    # end remove_possibilities
         
     def is_solved(self):
         """is the cell in a solved state, that is
@@ -146,6 +156,32 @@ class Sudoku(object):
             return self.get_block_set(block_pos)
     # end get_set
     
+    def process_set(self,n):
+        """apply the Sudoku exclusion rules to the Cell set n
+        (see also Sudoku.get_set(n) )
+        returns True if there was some progress in the elimination process"""
+        cell_list = self.get_set(n)
+        # Find all numbers that are already solved
+        solved_numbers = [c.solution() for c in cell_list 
+                                       if c.is_solved()]
+        print('Solved numbers in set %d : %s' % (n,solved_numbers) )
+        # Remove the solved numbers from the set of possibilities
+        app = [c.remove_possibilities(set(solved_numbers)) 
+               for c in cell_list 
+               if not c.is_solved() ]
+        nb_progress = len([b for b in app if b])
+        print('Number of cells that got some progress : %d' % nb_progress)
+        return nb_progress > 0
+    
+    def process_all_sets(self):
+        """apply the Sudoku exclusion rules *once* to each Cell set of the grid
+        returns True if there was some progress in the elimination process"""
+        progress = False
+        for n in range(9+9+9):
+            progress |=  self.process_set(n)
+        return progress
+            
+    
     def __str__(self):
         """visual text represtation of the Sudoku grid at current state
         Note : this function assumes block_size == (3,3) 
@@ -162,11 +198,40 @@ class Sudoku(object):
             s += ''.join(str_list[0:3]) + '  ' +\
                  ''.join(str_list[3:6]) + '  ' +\
                  ''.join(str_list[6:9]) + '  '
-        return s
+        s+= '\n\nNumber of solved cells : %d/81' % len([c for c in self.cells if c.is_solved()])
         
+        return s
+    
+    def print_grid(self):
+        """displays the grid"""
+        print(self)
+    
+    def print_nb_possibilities(self):
+        """displays the number of remaining possibilities in each cell
+        a '.' means the cell is solved
+        """
+        (N0, N1) = self.grid_size          
+        print("Number of remaining possibilities :\n")
+        for a0 in range(N0):
+            if a0 > 0 and a0 % 3 == 0:
+                print('')
+            str_list = [str(len(c.possibilities)) for c in self.get_row_set(a0)]
+            str_list = ['.' if char=='1' else char for char in str_list]
+            s  = ''.join(str_list[0:3]) + '  ' +\
+                 ''.join(str_list[3:6]) + '  ' +\
+                 ''.join(str_list[6:9]) + '  '
+            print(s)
+        print('\nNumber of solved cells : %d/81' % 
+              len([c for c in self.cells if c.is_solved()]))
 
 if __name__ == '__main__':
     print("Sudoku solver program")
     print("-"*21)
     S = Sudoku('sudoku-examples/sudoku-level4-1.txt')
     print(S)
+    
+    S.process_all_sets()
+    S.process_all_sets()
+    S.process_all_sets()
+    print(S)
+    S.print_nb_possibilities()
