@@ -32,18 +32,23 @@ class Cell(object):
         if solution is not None:
             assert solution in self.all_possibilities
             # remove all possibilities but the solution
+            self.remove_possibilities(self.all_possibilities - set([solution]))            
     
     def remove_possibilities(self, rm_set):
         """remove a set of possibilities"""
-        pass
+        self.possibilities -= rm_set
+        assert len(self.possibilities) >= 1
         
     def is_solved(self):
         """is the cell in a solved state, that is
         there is just one possibility"""
-        return False
+        return len(self.possibilities) == 1
     
     def __str__(self):
-        return "x"
+        if self.is_solved():
+            return str(tuple(self.possibilities)[0])
+        else:
+            return "-"
         
 class Sudoku(object):
     """represent the Sudoku game"""
@@ -53,14 +58,31 @@ class Sudoku(object):
     block_size = (3,3)
     
     def __init__(self, input_game=None):
-        """"""
+        """input_game : filename of a file to load the game from
+                        if None, Sudoku starts completely unsolved"""
         (N0, N1) = self.grid_size
+        
+        # Read the input if any
+        input_lines = None
+        if input_game is not None:
+            with open(input_game) as f:
+                input_lines = f.readlines()
+            
         # All the 9*9 cells are stored in a list : 
         self.cells = []
         # Populate the list:
         for a0 in range(N0):
             for a1 in range(N1):
-                cell = Cell((a0,a1), solution=None)
+                sol = None
+                if input_lines is not None:
+                    sol = input_lines[a0][a1]
+                    try:
+                       sol = int(sol)
+                       #print('(%d,%d) = %d' % (a0, a1, sol))
+                    except ValueError:
+                        # sol is not a number. Just skip
+                        sol = None
+                cell = Cell((a0,a1), solution=sol)
                 self.cells.append(cell)
     # end __init__
     
@@ -77,9 +99,12 @@ class Sudoku(object):
         return set()
     
     def __str__(self):
-        """visual text represtation of the Sudoku grid at current state"""
+        """visual text represtation of the Sudoku grid at current state
+        Note : this function assumes block_size == (3,3) 
+        and grid width being 9 (that is the usual Sudoku format)
+        """
         (N0, N1) = self.grid_size          
-        s = "Sudoku grid :\n"
+        s = "Sudoku grid :\n\n"
         for a0 in range(N0):
             if a0 > 0:
                 s+= '\n'
@@ -95,5 +120,5 @@ class Sudoku(object):
 if __name__ == '__main__':
     print("Sudoku solver program")
     print("-"*21)
-    S = Sudoku()
+    S = Sudoku('sudoku-examples/sudoku-level4-1.txt')
     print(S)
