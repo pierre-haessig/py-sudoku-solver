@@ -94,6 +94,13 @@ class Sudoku(object):
         if input_game is not None:
             with open(input_game) as f:
                 input_lines = f.readlines()
+            # filter out blank lines
+            input_lines = [line for line in input_lines
+                                if line.strip() != '']
+            # filter out blank characters
+            input_lines = [[c for c in line
+                              if c.strip() != ''] 
+                            for line in input_lines]
             
         # All the 9*9 cells are stored in a list : 
         self.cells = []
@@ -227,7 +234,7 @@ class Sudoku(object):
 if __name__ == '__main__':
     print("Sudoku solver program")
     print("-"*21)
-    S = Sudoku('sudoku-examples/sudoku-level4-1.txt')
+    S = Sudoku('sudoku-examples/sudoku-level4-30.txt')
     print(S)
     
     S.process_all_sets()
