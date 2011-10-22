@@ -45,7 +45,9 @@ class Cell(object):
             return False
         else:
             self.possibilities -= rm_set
-            assert len(self.possibilities) >= 1
+            if len(self.possibilities) < 1:
+                raise ValueError("Removing %s from Cell %s makes it empty!" %
+                (rm_set, self.pos))
             return True
     # end remove_possibilities
         
@@ -120,6 +122,19 @@ class Sudoku(object):
                 self.cells.append(cell)
     # end __init__
     
+    def get_cell(self, a0, a1):
+        """get the cell at row `a0` and column a1
+        (for interactive use only)
+        """
+        (N0, N1) = self.grid_size
+        assert 0 <= a0 < N0
+        assert 0 <= a1 < N1
+        
+        c_list = [c for c in self.cells 
+                  if (c.pos[0]==a0 and c.pos[1]==a1)]
+        
+        return c_list[0]
+    
     def get_row_set(self, a0):
         """get the list of cells at row a0"""
         return [c for c in self.cells if c.pos[0]==a0]
@@ -162,6 +177,48 @@ class Sudoku(object):
             block_pos = (block_number%3, block_number//3)
             return self.get_block_set(block_pos)
     # end get_set
+    
+    def find_solved_groups(self, cell_list):
+        """find solved groups in the list of cells `cell_list`
+        solved groups are lists of :
+          * one cell that contain one possibility
+          * two cells that contain two identical possibilities
+          * three cells...
+          * four cells...
+        """
+        possibilities = [(c.possibilities, c) for c in cell_list
+                                              if len(c.possibilities) <= 4]
+        
+        groups = []
+        for n_pos in range(1,5):
+            #print('Finding groups of length %d...' % n_pos)
+            group_n = []
+            pos_n = [(pi,ci) for (pi,ci) in possibilities
+                             if len(pi) == n_pos]
+            
+            # Special case of fully solved Cells:
+            if n_pos == 1:
+                group_n = [ (pi,[ci]) for (pi,ci) in pos_n]
+                groups.append(group_n)
+                continue
+            
+            # Partially solved Cell:
+            # simple draft search algorithm
+            for i in range(len(pos_n)//2):
+                pi,ci = pos_n[i]
+                group_i = [ci]
+                for j in range(i+1,len(pos_n)):
+                    pj,cj = pos_n[j]
+                    if pi==pj:
+                        print('Cells %s and %s are twins!' % (ci.pos,cj.pos))
+                        group_i.append(cj)
+                if len(group_i) == n_pos:
+                    group_n.append((pi,group_i))
+                    print('Solved group of length %d:' % n_pos)
+                    print((pi,group_i))
+            if len(group_n)>0:
+                groups.append(group_n)                        
+        return groups
     
     def process_set(self,n):
         """apply the Sudoku exclusion rules to the Cell set n
@@ -242,3 +299,7 @@ if __name__ == '__main__':
     S.process_all_sets()
     print(S)
     S.print_nb_possibilities()
+    
+    # finding high order groups:
+    r6 = S.get_row_set(6)
+    groups = S.find_solved_groups(r6)
