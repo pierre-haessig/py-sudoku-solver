@@ -147,7 +147,7 @@ class Sudoku(object):
         """get the list of cell in the macro-block (A0,A1)"""
         assert len(block_pos) == 2
         (A0,A1) = block_pos
-        print("macro block (%d,%d)" % block_pos)
+        # print("macro block (%d,%d)" % block_pos)
         return [c for c in self.cells if c.pos[0]//3==A0 and c.pos[1]//3==A1]
     
     def get_set(self,n):
@@ -180,29 +180,35 @@ class Sudoku(object):
     
     def find_solved_groups(self, cell_list):
         """find solved groups in the list of cells `cell_list`
-        solved groups are lists of :
-          * one cell that contain one possibility
-          * two cells that contain two identical possibilities
-          * three cells...
-          * four cells...
+        returns a list of tuple pairs defined the following way :
+         (set of solved numbers, 
+          list of the corresponding group of solved Cells)
+        
+        Solved groups are composed either of 
+          * one cell that contain one possibility.
+            This cell is *fully solved*
+          * two/three/four cells that contain 
+            two/three/four identical possibilities.
+            These cells are only *partially solved* but we know for sure that
+            their possibilities can't be used in an cell *outside* the group.
         """
         possibilities = [(c.possibilities, c) for c in cell_list
                                               if len(c.possibilities) <= 4]
         
-        groups = []
+        solved_groups = []
         for n_pos in range(1,5):
             #print('Finding groups of length %d...' % n_pos)
-            group_n = []
+            groups_n = []
             pos_n = [(pi,ci) for (pi,ci) in possibilities
                              if len(pi) == n_pos]
             
             # Special case of fully solved Cells:
             if n_pos == 1:
-                group_n = [ (pi,[ci]) for (pi,ci) in pos_n]
-                groups.append(group_n)
+                groups_n = [ (pi,[ci]) for (pi,ci) in pos_n]
+                solved_groups.extend(groups_n)
                 continue
             
-            # Partially solved Cell:
+            # Partially solved Cell: (n_pos>1)
             # simple draft search algorithm
             for i in range(len(pos_n)//2):
                 pi,ci = pos_n[i]
@@ -210,31 +216,55 @@ class Sudoku(object):
                 for j in range(i+1,len(pos_n)):
                     pj,cj = pos_n[j]
                     if pi==pj:
-                        print('Cells %s and %s are twins!' % (ci.pos,cj.pos))
+                        #print('Cells %s and %s are twins!' % (ci.pos,cj.pos))
                         group_i.append(cj)
                 if len(group_i) == n_pos:
-                    group_n.append((pi,group_i))
-                    print('Solved group of length %d:' % n_pos)
-                    print((pi,group_i))
-            if len(group_n)>0:
-                groups.append(group_n)                        
-        return groups
+                    groups_n.append((pi,group_i))
+                    #print('Solved group of length %d:' % n_pos)
+                    #print((pi,group_i))
+            if len(groups_n)>0:
+                solved_groups.extend(groups_n)
+        return solved_groups
+    
+    def find_solved_placements(self, cell_list):
+        '''find where numbers must be placed due to the rule of surjectivity
+        IN PROGRESS
+        '''
+        # Find all possible placements
+        possible_placements = dict((poss, set(cell for cell in cell_list
+                                                 if poss in cell.possibilities)) 
+                                    for poss in Cell.all_possibilities)
+        
+        solved_placements = possible_placements
+        
+        return solved_placements
     
     def process_set(self,n):
         """apply the Sudoku exclusion rules to the Cell set n
         (see also Sudoku.get_set(n) )
         returns True if there was some progress in the elimination process"""
         cell_list = self.get_set(n)
-        # Find all numbers that are already solved
-        solved_numbers = [c.solution() for c in cell_list 
-                                       if c.is_solved()]
-        print('Solved numbers in set %d : %s' % (n,solved_numbers) )
-        # Remove the solved numbers from the set of possibilities
-        app = [c.remove_possibilities(set(solved_numbers)) 
-               for c in cell_list 
-               if not c.is_solved() ]
-        nb_progress = len([b for b in app if b])
-        print('Number of cells that got some progress : %d' % nb_progress)
+        # Find groups that are already solved
+        solved_groups = self.find_solved_groups(cell_list)
+        
+        nb_progress = 0
+        
+        # Apply rule 1 (Injectivity)
+        for c in cell_list:
+            if c.is_solved():
+                continue
+            # Filter what are the wrong possibilities for cell `c`
+            wrong_poss = [poss_i 
+                          for poss_i,group_i in solved_groups
+                          if not c in group_i]
+            # merge the sets of wrong possibilities:
+            wrong_poss = wrong_poss[0].union(*wrong_poss[1:])
+            # Remove the wrong possibilities from cell `c` :
+            nb_progress += int(c.remove_possibilities(wrong_poss))
+        
+        # Apply rule 2 (Surjectivity)
+        
+        #print('Number of cells that got some progress : %d' % nb_progress)
         return nb_progress > 0
     
     def process_all_sets(self):
