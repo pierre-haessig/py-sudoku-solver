@@ -353,6 +353,7 @@ class Sudoku(object):
         
         #print('Number of cells that got some progress : %d' % nb_progress)
         return nb_progress > 0
+    # end process_set
     
     def process_all_sets(self):
         """apply the Sudoku exclusion rules *once* to each Cell set of the grid
@@ -364,7 +365,35 @@ class Sudoku(object):
         for n in range(9+9+9):
             progress |=  self.process_set(n)
         return progress
-            
+    # end process_all_sets
+    
+    def solve_game(self, max_iter=20):
+        '''(attempt to) solve the Sudoku game
+        
+        It works by calling iteratively the `process_all_sets` method
+        until there is no more progress OR until `max_iter` is reached
+        
+        Returns (is_solved, nb_iter) with
+         * is_solved : boolean flag for success
+         * nb_iter : (int) number of iterations used to solve the game
+        '''
+        for nb_iter in range(1, max_iter+1):
+            progress = self.process_all_sets()
+            if not progress:
+                # Stop working if there is no more progress
+                nb_iter -= 1
+                print('No more progress after %d iterations' % nb_iter)
+                break
+        else:
+            print('Maximum number of iteration (%d) reached !' % max_iter)
+        # Check if we solved the game
+        is_solved = all(c.is_solved() for c in self.cells)
+        if is_solved:
+            print('Sudoku successfully solved !')
+        else:
+            print('Unable to solve the Sudoku :-(')
+        # Report back:
+        return (is_solved, nb_iter)
     
     def __str__(self):
         """visual text representation of the Sudoku grid at current state
@@ -439,3 +468,9 @@ if __name__ == '__main__':
     
     # Find solved placements
     placements = S.find_solved_placements(r6)
+    
+    # Example of complete solving:
+    print('\nComplete automatic solving:')
+    Sd = Sudoku('sudoku-examples/sudoku-diabolic1.txt')
+    Sd.solve_game()
+
