@@ -12,7 +12,7 @@ see README.rst for more information
 """
 
 from __future__ import division, print_function
-
+import os.path
 
 class Cell(object):
     """represents a Sudoku cell"""
@@ -97,10 +97,10 @@ class Cell(object):
             return None
     
     def __str__(self):
-        """string of the solution, or "-" if Cell is unsolved"""
+        """string of the solution, or "." if Cell is unsolved"""
         sol = self.solution()
         if sol is None:
-            return "-"
+            return "."
         else:
             return str(sol)
     
@@ -123,9 +123,10 @@ class Sudoku(object):
                         if None, Sudoku starts completely unsolved"""
         (N0, N1) = self.grid_size
         
-        # Read the input if any
+        # Read the input, if any
         input_lines = None
         if input_game is not None:
+            self.sudoku_file=input_game
             with open(input_game) as f:
                 input_lines = f.readlines()
             # filter out blank lines
@@ -135,8 +136,9 @@ class Sudoku(object):
             input_lines = [[c for c in line
                               if c.strip() != ''] 
                             for line in input_lines]
-            
-        # All the 9*9 cells are stored in a list : 
+        else:
+            self.sudoku_file=''
+        # All the 9*9 cells are stored in a list :
         self.cells = []
         # Populate the list:
         for a0 in range(N0):
@@ -362,27 +364,37 @@ class Sudoku(object):
         and grid width being 9 (that is the usual Sudoku format)
         """
         (N0, N1) = self.grid_size
-        s = "Sudoku grid :\n\n"
+        s = ""
         for a0 in range(N0):
-            if a0 > 0:
+            if a0 % 3 == 0 and a0 != 0:
                 s+= '\n'
-                if a0 % 3 == 0:
-                    s+= '\n'
             str_list = [str(c) for c in self.get_row_set(a0)]
             s += ''.join(str_list[0:3]) + '  ' +\
                  ''.join(str_list[3:6]) + '  ' +\
-                 ''.join(str_list[6:9]) + '  '
-        s+= '\n\nNumber of solved cells : %d/81' % len([c for c in self.cells if c.is_solved()])
-        
+                 ''.join(str_list[6:9]) + '\n'
+        s += '\n'
+        # end for
         return s
+    # end __str__
     
     def print_grid(self):
-        """displays the grid"""
-        print(self)
+        """displays the Sudoky grid, in a fancier way than print()"""
+        (N0, N1) = self.grid_size
+        s = "Sudoku grid '%s':\n\n" % os.path.basename(self.sudoku_file)
+        for a0 in range(N0):
+            if a0 % 3 == 0 and a0 != 0:
+                    s+= '------+-------+------\n'
+            str_list = [str(c) for c in self.get_row_set(a0)]
+            s += ' '.join(str_list[0:3]) + ' | ' +\
+                 ' '.join(str_list[3:6]) + ' | ' +\
+                 ' '.join(str_list[6:9]) + '\n'
+        s+= '\n\nNumber of solved cells : %d/81' % len([c for c in self.cells if c.is_solved()])
+        
+        print(s)
     
     def print_nb_possibilities(self):
         """displays the number of remaining possibilities in each cell
-        a '.' means the cell is solved
+        a `'` means the cell is solved (that is only one remaining possibility)
         """
         (N0, N1) = self.grid_size          
         print("Number of remaining possibilities :\n")
@@ -390,7 +402,7 @@ class Sudoku(object):
             if a0 > 0 and a0 % 3 == 0:
                 print('')
             str_list = [str(len(c.possibilities)) for c in self.get_row_set(a0)]
-            str_list = ['.' if char=='1' else char for char in str_list]
+            str_list = ['\'' if char=='1' else char for char in str_list]
             s  = ''.join(str_list[0:3]) + '  ' +\
                  ''.join(str_list[3:6]) + '  ' +\
                  ''.join(str_list[6:9]) + '  '
@@ -400,13 +412,15 @@ class Sudoku(object):
 
 if __name__ == '__main__':
     print("Sudoku solver program")
-    print("-"*21)
-    S = Sudoku('sudoku-examples/sudoku-level4-30.txt')
+    print("-"*21+'\n')
+    sudoku_file = 'sudoku-examples/sudoku-level4-30.txt'
+    S = Sudoku(sudoku_file)
+    print('Sudoku grid "%s":\n' % os.path.basename(sudoku_file))
     print(S)
-    
     S.process_all_sets()
     S.process_all_sets()
     S.process_all_sets()
+    print('Sudoku grid "%s" after 3 iterations:\n' % os.path.basename(sudoku_file))
     print(S)
     S.print_nb_possibilities()
     
