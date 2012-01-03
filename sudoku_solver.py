@@ -428,6 +428,32 @@ class Sudoku(object):
         s+= '\n\nNumber of solved cells : %d/81' % len([c for c in self.cells if c.is_solved()])
         
         print(s)
+    #end print_grid
+    
+    def print_all_possibilities(self):
+        """displays the Sudoky grid,
+        with all the available possibilities in each cell
+        """
+        (N0, N1) = self.grid_size
+        print("Sudoku grid '%s':\n" % os.path.basename(self.sudoku_file))
+        for a0 in range(N0):
+            if a0 % 3 == 0 and a0 != 0:
+                print('------------+-------------+------------')
+            # Get all possibilities for each cell in the current row:
+            str_list = [ ''.join(str(p) for p in c.possibilities)
+                         for c in self.get_row_set(a0)]
+            # pad all the possibilities strings to fixed with 9
+            str_list = [s.center(9) for s in str_list]
+            #print(str_list)
+            # Split the possibilities into three lines
+            for i in range(3):
+                str_list_i = [s[3*i:3*i+3] for s in str_list]
+                print(' '.join(str_list_i[0:3]) + ' | ' +\
+                      ' '.join(str_list_i[3:6]) + ' | ' +\
+                      ' '.join(str_list_i[6:9]))
+        print('\nNumber of solved cells : %d/81' % 
+              len([c for c in self.cells if c.is_solved()]))
+    # end pring_all_possibilities
     
     def print_nb_possibilities(self):
         """displays the number of remaining possibilities in each cell
