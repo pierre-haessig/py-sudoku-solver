@@ -123,19 +123,25 @@ class Sudoku(object):
                         if None, Sudoku starts completely unsolved"""
         (N0, N1) = self.grid_size
         
-        # Read the input, if any
-        input_lines = None
+        # 1) Read the input, if any
+        input_str = None
         if input_game is not None:
+            meaningful_chr = '123456789.'
             self.sudoku_file=input_game
             with open(input_game) as f:
-                input_lines = f.readlines()
-            # filter out blank lines
-            input_lines = [line for line in input_lines
-                                if line.strip() != '']
-            # filter out blank characters
-            input_lines = [[c for c in line
-                              if c.strip() != ''] 
-                            for line in input_lines]
+                input_str = f.read()
+            # filter out blanks and formatting characters
+            input_str = [ch for ch in input_str
+                            if ch in meaningful_chr]
+            if len(input_str) == N0*N1: # 81
+                print('Sudoku "%s" successfully loaded' %
+                       os.path.basename(self.sudoku_file))
+            else:
+                raise ValueError('Input game "%s" is of wrong size '
+                       '(should contain %d meaninful symbols instead of %d)' %
+                       (os.path.basename(self.sudoku_file),
+                        N0*N1, len(input_str))
+                       )
         else:
             self.sudoku_file=''
         # All the 9*9 cells are stored in a list :
@@ -144,8 +150,8 @@ class Sudoku(object):
         for a0 in range(N0):
             for a1 in range(N1):
                 sol = None
-                if input_lines is not None:
-                    sol = input_lines[a0][a1]
+                if input_str is not None:
+                    sol = input_str[a0*N0+a1]
                     try:
                        sol = int(sol)
                        #print('(%d,%d) = %d' % (a0, a1, sol))
@@ -154,6 +160,8 @@ class Sudoku(object):
                         sol = None
                 cell = Cell((a0,a1), solution=sol)
                 self.cells.append(cell)
+        print(' number of solved cells at startup : %d/81' %
+                      len([c for c in self.cells if c.is_solved()]))
     # end __init__
     
     def get_cell(self, a0, a1):
@@ -324,7 +332,7 @@ class Sudoku(object):
         
         # 2a) Apply Injectivity Rule
         for c in cell_list:
-            if c.is_solved():
+            if c.is_solved() or not (solved_groups):
                 continue
             
             # Filter what are the wrong possibilities for cell `c`
