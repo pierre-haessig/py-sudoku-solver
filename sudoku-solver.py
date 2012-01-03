@@ -31,15 +31,18 @@ class Cell(object):
         
         if solution is not None:
             assert solution in self.all_possibilities
-            # remove all possibilities but the solution
-            self.remove_possibilities(self.all_possibilities - set([solution]))            
+            # keep only the solution
+            self.keep_possibilities(set([solution]))
     
     def remove_possibilities(self, rm_set):
         """remove a set of possibilities
+        
         - returns True if there was strict decrease in
         the size of possibilities set
         - returns False if rm_set has no elements in common with
         possibilities set
+        
+        See also : keep_possibilities
         """
         if self.possibilities.isdisjoint(rm_set):
             return False
@@ -50,7 +53,36 @@ class Cell(object):
                 (rm_set, self.pos))
             return True
     # end remove_possibilities
+    
+    def keep_possibilities(self, kp_set):
+        """ keep only a given set of possibilities `kp_set`
+        The remaining possibilities are then the intersection of
+        1. previously available possibilities
+        2. `kp_set`
         
+        (ValueError is raised if the intersection is empty)
+        
+        - returns True if there was strict decrease in
+        the size of possibilities set
+        - returns False if rm_set has no elements in common with
+        possibilities set
+        
+        See also : remove_possibilities
+        """
+        # 1) Check for empty intersection:
+        if self.possibilities.isdisjoint(kp_set):
+            raise ValueError("Keeping only %s from Cell %s makes it empty!" %
+                (kp_set, self.pos))
+        # 2) Do the job:
+        if self.possibilities.issubset(kp_set):
+            # nothing to do
+            return False
+        else:
+            # Strict decrease in the number of available possibilities
+            self.possibilities.intersection_update(kp_set)
+            return True
+    # end keep_possibilities
+    
     def is_solved(self):
         """is the cell in a solved state, that is
         there is just one possibility"""
@@ -180,7 +212,7 @@ class Sudoku(object):
     
     def find_solved_groups(self, cell_list):
         """find solved groups in the list of cells `cell_list`
-        returns a list of tuple pairs defined the following way :
+        Returns a list of tuple pairs defined the following way :
          (set of solved numbers, 
           list of the corresponding group of solved Cells)
         
@@ -198,7 +230,7 @@ class Sudoku(object):
         solved_groups = []
         for n_pos in range(1,5):
             #print('Finding groups of length %d...' % n_pos)
-            groups_n = []
+            groups_n = [] # TODO : remove the groups_n variable which is useless
             pos_n = [(pi,ci) for (pi,ci) in possibilities
                              if len(pi) == n_pos]
             
@@ -228,48 +260,96 @@ class Sudoku(object):
     
     def find_solved_placements(self, cell_list):
         '''find where numbers must be placed due to the rule of surjectivity
-        IN PROGRESS
+        
+        Returns a list of tuple pairs defined the following way :
+         (set of numbers to be placed,
+          set of Cells where to place those numbers)
         '''
+        solved_placements = []
         # Find all possible placements
-        possible_placements = dict((poss, set(cell for cell in cell_list
+        possible_placements = list((poss, set(cell for cell in cell_list
                                                  if poss in cell.possibilities)) 
                                     for poss in Cell.all_possibilities)
-        
-        solved_placements = possible_placements
-        
+        # Filter placements that are solved
+        for n_pos in range(1,5):
+            places_n = [ (poss, cells)
+                         for poss,cells in possible_placements
+                         if len(cells)==n_pos]
+            
+            # 1) Special case of fully solved placements:
+            if n_pos == 1:
+                solved_placements.extend([(set([poss]), cells) 
+                                          for poss,cells in places_n
+                                          if not tuple(cells)[0].is_solved() ])
+                continue
+            
+            # 2) Partially solved placements: (n_pos>1)
+            # Search for identical placement possibilities
+            for i in range(len(places_n)//2):
+                pi,cells_i = places_n[i]
+                poss_group_i = set([pi])
+                for j in range(i+1,len(places_n)):
+                    # look for identical cells
+                    pj,cells_j = places_n[j]
+                    if cells_i==cells_j:
+                        poss_group_i.add(pj)
+                if len(poss_group_i) == n_pos:
+                    # the group is of proper length
+                    solved_placements.append((poss_group_i, cells_i))
+                    
         return solved_placements
     
     def process_set(self,n):
-        """apply the Sudoku exclusion rules to the Cell set n
-        (see also Sudoku.get_set(n) )
-        returns True if there was some progress in the elimination process"""
+        """Apply the Sudoku Rules to the Cell set `n`
+        (see Sudoku.get_set(n))
+        It enforces both :
+         * "Injectivity" : remove possibilities which are fully/partially solved
+           (with the help of `find_solved_groups` method)
+         * "Surjectivity" : enforce the placement of numbers which must be
+           (with the help of `find_solved_placements` method)
+        
+        Returns True if there was some progress in the elimination process
+                False otherwise
+        """
         cell_list = self.get_set(n)
-        # Find groups that are already solved
+        # 1a) Find groups that are already solved:
         solved_groups = self.find_solved_groups(cell_list)
+        
+        # 1b) Find placements that are already solved:
+        solved_placements = self.find_solved_placements(cell_list)
         
         nb_progress = 0
         
-        # Apply rule 1 (Injectivity)
+        # 2a) Apply Injectivity Rule
         for c in cell_list:
             if c.is_solved():
                 continue
+            
             # Filter what are the wrong possibilities for cell `c`
-            wrong_poss = [poss_i 
+            wrong_poss = [poss_i
                           for poss_i,group_i in solved_groups
                           if not c in group_i]
+            
             # merge the sets of wrong possibilities:
             wrong_poss = wrong_poss[0].union(*wrong_poss[1:])
             # Remove the wrong possibilities from cell `c` :
             nb_progress += int(c.remove_possibilities(wrong_poss))
-        
-        # Apply rule 2 (Surjectivity)
+            
+        # 2b) Surjectivity Rule
+        # placement enforcement with c.keep_possibilities()
+        for poss_i,group_i in solved_placements:
+            for cell in group_i:
+                nb_progress += int(cell.keep_possibilities(poss_i))
         
         #print('Number of cells that got some progress : %d' % nb_progress)
         return nb_progress > 0
     
     def process_all_sets(self):
         """apply the Sudoku exclusion rules *once* to each Cell set of the grid
-        returns True if there was some progress in the elimination process"""
+        
+        Returns True if there was some progress in the elimination process
+                False otherwise
+        """
         progress = False
         for n in range(9+9+9):
             progress |=  self.process_set(n)
@@ -277,11 +357,11 @@ class Sudoku(object):
             
     
     def __str__(self):
-        """visual text represtation of the Sudoku grid at current state
+        """visual text representation of the Sudoku grid at current state
         Note : this function assumes block_size == (3,3) 
         and grid width being 9 (that is the usual Sudoku format)
         """
-        (N0, N1) = self.grid_size          
+        (N0, N1) = self.grid_size
         s = "Sudoku grid :\n\n"
         for a0 in range(N0):
             if a0 > 0:
@@ -330,6 +410,10 @@ if __name__ == '__main__':
     print(S)
     S.print_nb_possibilities()
     
-    # finding high order groups:
+    # Get one set of cells
     r6 = S.get_row_set(6)
+    # finding high order "injective" groups:
     groups = S.find_solved_groups(r6)
+    
+    # Find solved placements
+    placements = S.find_solved_placements(r6)
