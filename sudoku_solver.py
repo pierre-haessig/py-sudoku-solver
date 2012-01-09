@@ -377,6 +377,7 @@ class Sudoku(object):
          * is_solved : boolean flag for success
          * nb_iter : (int) number of iterations used to solve the game
         '''
+        # TODO : add timing information
         for nb_iter in range(1, max_iter+1):
             progress = self.process_all_sets()
             if not progress:
@@ -425,7 +426,8 @@ class Sudoku(object):
             s += ' '.join(str_list[0:3]) + ' | ' +\
                  ' '.join(str_list[3:6]) + ' | ' +\
                  ' '.join(str_list[6:9]) + '\n'
-        s+= '\n\nNumber of solved cells : %d/81' % len([c for c in self.cells if c.is_solved()])
+        s+= '\n\nNumber of solved cells : %d/81' % \
+            len([c for c in self.cells if c.is_solved()])
         
         print(s)
     #end print_grid
